@@ -2,16 +2,16 @@
 LLM service.
 
 Generates structured Jira updates and leadership summaries
-from track context using OpenAI.
+from track context using Anthropic Claude.
 """
 
 import json
 
-from openai import OpenAI
+import anthropic
 
-from app.config import OPENAI_API_KEY
+from app.config import ANTHROPIC_API_KEY
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 def generate_jira_updates(track_context: dict) -> dict:
@@ -21,9 +21,7 @@ def generate_jira_updates(track_context: dict) -> dict:
     milestones_json = json.dumps(track_context.get("milestones", []), indent=2)
     notes_text = track_context.get("notes_text", "No notes available.")
 
-    prompt = f"""You are a program management reporting agent.
-
-You have been given:
+    prompt = f"""You have been given:
 1. A list of milestones for a project track
 2. The full text of the track's notes document
 
@@ -60,13 +58,15 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
 }}
 """
 
-    response = client.responses.create(
-        model="gpt-4o-mini",
-        input=prompt,
+    response = client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=4096,
+        system="You are a program management reporting agent.",
+        messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
     )
 
-    content = response.output_text.strip()
+    content = response.content[0].text.strip()
 
     # Handle potential markdown code fences in response
     if content.startswith("```"):
