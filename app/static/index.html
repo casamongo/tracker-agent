@@ -108,6 +108,7 @@
     }
     .status-bar .error { color: var(--danger); }
     .status-bar .success { color: var(--success); }
+    .status-bar .warning { color: var(--warning); }
 
     /* ---- Table ---- */
     .table-wrap {
@@ -505,7 +506,11 @@ async function runUpdates() {
 
     // Index generated updates by jira_id
     generatedUpdates = {};
+    const errors = [];
     for (const result of (data.results || [])) {
+      if (result.error) {
+        errors.push(`${result.workstream || ''} / ${result.track || ''}: ${result.error}`);
+      }
       for (const update of (result.updates || [])) {
         generatedUpdates[update.jira_id] = {
           ...update,
@@ -517,7 +522,13 @@ async function runUpdates() {
 
     renderTable();
     const count = Object.keys(generatedUpdates).length;
-    setStatus(`Generated previews for ${count} milestone(s). Click the eye icons to review.`, 'success');
+    if (errors.length && count === 0) {
+      setStatus(`Error generating previews: ${errors[0]}`, 'error');
+    } else if (errors.length) {
+      setStatus(`Generated previews for ${count} milestone(s), but ${errors.length} track(s) had errors. Click the eye icons to review.`, 'warning');
+    } else {
+      setStatus(`Generated previews for ${count} milestone(s). Click the eye icons to review.`, 'success');
+    }
   } catch (e) {
     setStatus(e.message, 'error');
   } finally {
