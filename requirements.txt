@@ -1,1 +1,10 @@
-# Python dependencies
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+google-api-python-client
+google-auth
+google-auth-oauthlib
+requests
+openai
