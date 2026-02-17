@@ -10,8 +10,14 @@ A schema-driven reporting engine that:
 6. Writes leadership summaries back to the tracker sheet
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI
-from app.routes import generate, post
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+from app.routes import generate, post, sheet
 
 app = FastAPI(
     title="Tracker Agent",
@@ -19,10 +25,27 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(generate.router)
 app.include_router(post.router)
+app.include_router(sheet.router)
+
+# Serve static frontend assets
+_static_dir = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/")
+def index():
+    return FileResponse(str(_static_dir / "index.html"))
