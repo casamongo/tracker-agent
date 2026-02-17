@@ -13,6 +13,7 @@ Required columns:
   Jira ID, Notes, Status Update, Comments
 """
 
+import re
 from typing import Any
 
 REQUIRED_COLUMNS = [
@@ -26,6 +27,14 @@ REQUIRED_COLUMNS = [
     "Status Update",
     "Comments",
 ]
+
+
+def normalize_jira_key(key: str) -> str:
+    """Normalize a Jira issue key by stripping leading zeros from the number (e.g. OPS-08 -> OPS-8)."""
+    match = re.match(r"^([A-Za-z]+-)(0*)(\d+)$", key)
+    if match:
+        return match.group(1) + match.group(3)
+    return key
 
 
 def validate_schema(headers: list[str]) -> list[str]:
@@ -62,6 +71,7 @@ def parse_sheet_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             jira_id = (row.get("Jira ID") or "").strip()
             if not jira_id:
                 continue  # Skip milestones without Jira IDs
+            jira_id = normalize_jira_key(jira_id)
 
             milestone = {
                 "name": (row.get("Description") or "").strip(),
