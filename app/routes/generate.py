@@ -96,3 +96,35 @@ def generate_preview(request: GenerateRequest):
             })
 
     return {"results": results}
+
+
+@router.get("/debug-parse/{sheet_id}")
+def debug_parse(sheet_id: str):
+    """Temporary debug endpoint — shows raw headers, sample rows, and parsed tracks."""
+    try:
+        rows = sheets.read_sheet(sheet_id)
+    except Exception as e:
+        return {"error": f"Failed to read sheet: {e}"}
+
+    if not rows:
+        return {"error": "Sheet is empty"}
+
+    headers = list(rows[0].keys())
+    missing = parser.validate_schema(headers)
+    parsed_tracks = parser.parse_sheet_rows(rows)
+
+    return {
+        "row_count": len(rows),
+        "headers": headers,
+        "missing_columns": missing,
+        "sample_rows": rows[:3],
+        "parsed_tracks": [
+            {
+                "track": t["track"],
+                "workstream": t["workstream"],
+                "milestone_count": len(t["milestones"]),
+                "milestones": t["milestones"],
+            }
+            for t in parsed_tracks
+        ],
+    }
