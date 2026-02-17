@@ -5,10 +5,14 @@ Reads sheet data, fetches notes documents, and generates
 AI-powered Jira update drafts for human review.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.schemas import GenerateRequest
 from app.services import sheets, docs, parser, llm
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["generate"])
 
@@ -38,6 +42,11 @@ def generate_preview(request: GenerateRequest):
 
     # Step 3: Parse into hierarchy
     parsed_tracks = parser.parse_sheet_rows(rows)
+    logger.info(
+        "Parsed %d track(s) with milestones: %s",
+        len(parsed_tracks),
+        [(t["track"], len(t["milestones"])) for t in parsed_tracks],
+    )
 
     if not parsed_tracks:
         raise HTTPException(status_code=400, detail="No tracks found in sheet.")
@@ -75,8 +84,10 @@ def generate_preview(request: GenerateRequest):
         # Generate AI updates
         try:
             ai_result = llm.generate_jira_updates(track)
+            logger.info("Generated %d update(s) for track '%s'", len(ai_result.get("updates", [])), track["track"])
             results.append(ai_result)
         except Exception as e:
+            logger.error("LLM generation failed for track '%s': %s", track["track"], e)
             results.append({
                 "workstream": track.get("workstream", ""),
                 "track": track.get("track", ""),
@@ -85,3 +96,35 @@ def generate_preview(request: GenerateRequest):
             })
 
     return {"results": results}
+
+
+@router.get("/debug-parse/{sheet_id}")
+def debug_parse(sheet_id: str):
+    """Temporary debug endpoint — shows raw headers, sample rows, and parsed tracks."""
+    try:
+        rows = sheets.read_sheet(sheet_id)
+    except Exception as e:
+        return {"error": f"Failed to read sheet: {e}"}
+
+    if not rows:
+        return {"error": "Sheet is empty"}
+
+    headers = list(rows[0].keys())
+    missing = parser.validate_schema(headers)
+    parsed_tracks = parser.parse_sheet_rows(rows)
+
+    return {
+        "row_count": len(rows),
+        "headers": headers,
+        "missing_columns": missing,
+        "sample_rows": rows[:3],
+        "parsed_tracks": [
+            {
+                "track": t["track"],
+                "workstream": t["workstream"],
+                "milestone_count": len(t["milestones"]),
+                "milestones": t["milestones"],
+            }
+            for t in parsed_tracks
+        ],
+    }

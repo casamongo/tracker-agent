@@ -60,13 +60,13 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
 }}
 """
 
-    response = client.chat.completions.create(
+    response = client.responses.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
+        input=prompt,
         temperature=0.2,
     )
 
-    content = response.choices[0].message.content.strip()
+    content = response.output_text.strip()
 
     # Handle potential markdown code fences in response
     if content.startswith("```"):

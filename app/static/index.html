@@ -108,6 +108,7 @@
     }
     .status-bar .error { color: var(--danger); }
     .status-bar .success { color: var(--success); }
+    .status-bar .warning { color: var(--warning); }
 
     /* ---- Table ---- */
     .table-wrap {
@@ -505,7 +506,11 @@ async function runUpdates() {
 
     // Index generated updates by jira_id
     generatedUpdates = {};
+    const errors = [];
     for (const result of (data.results || [])) {
+      if (result.error) {
+        errors.push(`${result.workstream || ''} / ${result.track || ''}: ${result.error}`);
+      }
       for (const update of (result.updates || [])) {
         generatedUpdates[update.jira_id] = {
           ...update,
@@ -517,7 +522,13 @@ async function runUpdates() {
 
     renderTable();
     const count = Object.keys(generatedUpdates).length;
-    setStatus(`Generated previews for ${count} milestone(s). Click the eye icons to review.`, 'success');
+    if (errors.length && count === 0) {
+      setStatus(`Error generating previews: ${errors[0]}`, 'error');
+    } else if (errors.length) {
+      setStatus(`Generated previews for ${count} milestone(s), but ${errors.length} track(s) had errors. Click the eye icons to review.`, 'warning');
+    } else {
+      setStatus(`Generated previews for ${count} milestone(s). Click the eye icons to review.`, 'success');
+    }
   } catch (e) {
     setStatus(e.message, 'error');
   } finally {
@@ -527,14 +538,77 @@ async function runUpdates() {
 
 // ---- Preview modal ----
 
-function openPreview(rowIdx) {
+function findTrackName(rowIdx) {
+  // Walk backwards from milestone row to find the parent Track row
+  for (let i = rowIdx - 1; i >= 0; i--) {
+    if ((sheetRows[i]['WorkType'] || '').trim() === 'Track') {
+      return (sheetRows[i]['Description'] || '').trim();
+    }
+  }
+  return null;
+}
+
+async function generateForTrack(trackName) {
+  const sheetId = document.getElementById('sheetId').value.trim();
+
+  const res = await fetch(`${API}/generate-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sheet_id: sheetId, track_name: trackName }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || res.statusText);
+  }
+
+  const data = await res.json();
+
+  // Index all updates from this track into the cache
+  for (const result of (data.results || [])) {
+    for (const update of (result.updates || [])) {
+      generatedUpdates[update.jira_id] = {
+        ...update,
+        workstream: result.workstream,
+        track: result.track,
+      };
+    }
+  }
+
+  renderTable();
+}
+
+async function openPreview(rowIdx) {
   const row = sheetRows[rowIdx];
   const jiraId = (row['Jira ID'] || '').trim();
   const name = (row['Description'] || '').trim();
 
+  // If no preview cached yet, generate on demand for this track
+  if (!generatedUpdates[jiraId]) {
+    const trackName = findTrackName(rowIdx);
+    if (!trackName) {
+      setStatus(`Could not determine parent track for ${jiraId}.`, 'error');
+      return;
+    }
+
+    // Show loading state on the button
+    const btn = document.querySelector(`tr[data-idx="${rowIdx}"] .preview-btn`);
+    if (btn) btn.innerHTML = '<span class="spinner"></span>';
+
+    setStatus(`<span class="spinner"></span> Generating preview for track "${trackName}"...`);
+    try {
+      await generateForTrack(trackName);
+    } catch (e) {
+      setStatus(e.message, 'error');
+      renderTable();
+      return;
+    }
+    setStatus('Preview ready.', 'success');
+  }
+
   const update = generatedUpdates[jiraId];
   if (!update) {
-    setStatus(`No preview generated yet for ${jiraId}. Click "Run Updates Now" first.`, 'error');
+    setStatus(`No update was generated for ${jiraId}. The LLM may not have returned data for this milestone.`, 'error');
     return;
   }
 

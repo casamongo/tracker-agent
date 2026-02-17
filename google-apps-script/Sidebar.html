@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Google Sans, Roboto, Arial, sans-serif;
+      font-size: 13px;
+      color: #202124;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a73e8;
+      margin-bottom: 4px;
+      word-wrap: break-word;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #5f6368;
+      margin-bottom: 16px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 0;
+      color: #5f6368;
+    }
+    .loading .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #dadce0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .field-group {
+      margin-bottom: 14px;
+    }
+    .field-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: #5f6368;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field-group textarea {
+      width: 100%;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #202124;
+      resize: vertical;
+      min-height: 70px;
+      transition: border-color 0.2s;
+    }
+    .field-group textarea:focus {
+      outline: none;
+      border-color: #1a73e8;
+    }
+
+    .summary-box {
+      background: #f8f9fa;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .summary-box .date-tag {
+      font-size: 11px;
+      color: #5f6368;
+      margin-bottom: 4px;
+    }
+    .summary-box textarea {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #202124;
+      resize: vertical;
+      min-height: 36px;
+      padding: 0;
+    }
+    .summary-box textarea:focus { outline: none; }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-cancel {
+      background: #f1f3f4;
+      color: #5f6368;
+    }
+    .btn-cancel:hover { background: #e8eaed; }
+    .btn-post {
+      background: #1a73e8;
+      color: #fff;
+    }
+    .btn-post:hover { background: #1765cc; }
+
+    .status {
+      margin-top: 12px;
+      font-size: 12px;
+      text-align: center;
+      min-height: 18px;
+    }
+    .status.error { color: #d93025; }
+    .status.success { color: #188038; }
+
+    .error-banner {
+      background: #fce8e6;
+      color: #d93025;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading state -->
+  <div id="loadingState" class="loading">
+    <div class="spinner"></div>
+    <div>Generating preview...</div>
+    <div style="margin-top:8px;font-size:11px;color:#80868b;">Reading notes & calling AI</div>
+  </div>
+
+  <!-- Error state -->
+  <div id="errorState" style="display:none;">
+    <div class="error-banner" id="errorMessage"></div>
+  </div>
+
+  <!-- Preview form -->
+  <div id="previewForm" style="display:none;">
+    <div class="title" id="previewTitle"></div>
+    <div class="subtitle" id="previewSubtitle"></div>
+
+    <div class="field-group">
+      <label>Progress Summary</label>
+      <textarea id="fieldProgress" rows="4"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>Recent Changes</label>
+      <textarea id="fieldChanges" rows="3"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>Next Steps</label>
+      <textarea id="fieldNextSteps" rows="3"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>Summary for Comments Column</label>
+      <div class="summary-box">
+        <div class="date-tag" id="summaryDate"></div>
+        <textarea id="fieldLeadership" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-cancel" onclick="google.script.host.close()">Cancel</button>
+      <button class="btn btn-post" id="btnPost" onclick="postToJira()">Post to Jira</button>
+    </div>
+
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+<script>
+  var rowData = null;
+
+  // On load: fetch row data, then generate preview
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (!data) {
+        showError('No row data found. Select a milestone row and try again.');
+        return;
+      }
+      rowData = data;
+      document.getElementById('previewTitle').textContent = data.jiraId + ' \u2014 ' + data.description;
+      document.getElementById('previewSubtitle').textContent = data.workstream + ' > ' + data.trackName;
+
+      // Generate AI preview
+      google.script.run
+        .withSuccessHandler(onPreviewReady)
+        .withFailureHandler(function(err) { showError(err.message); })
+        .generatePreview(data);
+    })
+    .withFailureHandler(function(err) { showError(err.message); })
+    .getSelectedRowData();
+
+  function onPreviewReady(result) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('previewForm').style.display = '';
+
+    document.getElementById('fieldProgress').value = bulletsToText(result.progress_summary || []);
+    document.getElementById('fieldChanges').value = bulletsToText(result.recent_changes || []);
+    document.getElementById('fieldNextSteps').value = bulletsToText(result.next_steps || []);
+    document.getElementById('fieldLeadership').value = result.leadership_summary || '';
+
+    var now = new Date();
+    document.getElementById('summaryDate').textContent =
+      now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  function postToJira() {
+    var btn = document.getElementById('btnPost');
+    var statusEl = document.getElementById('statusMsg');
+    btn.disabled = true;
+    statusEl.className = 'status';
+    statusEl.textContent = 'Posting to Jira...';
+
+    var progress = textToBullets(document.getElementById('fieldProgress').value);
+    var changes = textToBullets(document.getElementById('fieldChanges').value);
+    var nextSteps = textToBullets(document.getElementById('fieldNextSteps').value);
+    var leadership = document.getElementById('fieldLeadership').value.trim();
+
+    var comment = '';
+    if (progress.length)   comment += 'Progress Summary:\n'  + progress.map(function(b) { return '- ' + b; }).join('\n') + '\n\n';
+    if (changes.length)    comment += 'Recent Changes:\n'    + changes.map(function(b) { return '- ' + b; }).join('\n') + '\n\n';
+    if (nextSteps.length)  comment += 'Next Steps:\n'        + nextSteps.map(function(b) { return '- ' + b; }).join('\n') + '\n\n';
+    if (leadership)        comment += 'Leadership Summary:\n' + leadership;
+
+    google.script.run
+      .withSuccessHandler(function() {
+        statusEl.className = 'status success';
+        statusEl.textContent = 'Posted to Jira!';
+
+        // Also write leadership summary back to the sheet
+        if (leadership && rowData.trackName) {
+          google.script.run
+            .withSuccessHandler(function() {
+              statusEl.textContent = 'Posted to Jira & updated sheet summary!';
+            })
+            .withFailureHandler(function(err) {
+              statusEl.textContent = 'Posted to Jira. Sheet update failed: ' + err.message;
+            })
+            .updateSheetSummary(rowData.trackName, leadership);
+        }
+      })
+      .withFailureHandler(function(err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Error: ' + err.message;
+        btn.disabled = false;
+      })
+      .postToJira(rowData.jiraId, comment.trim());
+  }
+
+  function showError(msg) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = '';
+    document.getElementById('errorMessage').textContent = msg;
+  }
+
+  function bulletsToText(arr) {
+    return arr.map(function(b) { return '\u2022 ' + b; }).join('\n');
+  }
+
+  function textToBullets(text) {
+    return text.split('\n')
+      .map(function(line) { return line.replace(/^[\u2022\-\*]\s*/, '').trim(); })
+      .filter(function(s) { return s.length > 0; });
+  }
+</script>
+</body>
+</html>
