@@ -6,18 +6,15 @@ Reads the full text content of a Google Doc given its URL or document ID.
 
 import re
 
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-from app.config import GOOGLE_SERVICE_ACCOUNT_FILE
+from app.config import get_google_credentials
 
 SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
 
 
 def _get_docs_service():
-    credentials = service_account.Credentials.from_service_account_file(
-        GOOGLE_SERVICE_ACCOUNT_FILE, scopes=SCOPES
-    )
+    credentials = get_google_credentials(SCOPES)
     return build("docs", "v1", credentials=credentials)
 
 

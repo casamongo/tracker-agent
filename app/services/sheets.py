@@ -4,18 +4,15 @@ Google Sheets service.
 Reads tracker spreadsheet data using a service account.
 """
 
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-from app.config import GOOGLE_SERVICE_ACCOUNT_FILE
+from app.config import get_google_credentials
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
 def _get_sheets_service():
-    credentials = service_account.Credentials.from_service_account_file(
-        GOOGLE_SERVICE_ACCOUNT_FILE, scopes=SCOPES
-    )
+    credentials = get_google_credentials(SCOPES)
     return build("sheets", "v4", credentials=credentials)
 
 
@@ -54,10 +51,7 @@ def update_cell(sheet_id: str, range_name: str, value: str) -> None:
     """
     Write a single value to a specific cell in the sheet.
     """
-    credentials = service_account.Credentials.from_service_account_file(
-        GOOGLE_SERVICE_ACCOUNT_FILE,
-        scopes=["https://www.googleapis.com/auth/spreadsheets"],
-    )
+    credentials = get_google_credentials(["https://www.googleapis.com/auth/spreadsheets"])
     service = build("sheets", "v4", credentials=credentials)
 
     service.spreadsheets().values().update(
