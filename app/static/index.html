@@ -352,19 +352,11 @@
       </div>
       <div class="modal-body">
         <div class="field-group">
-          <label>Progress Summary</label>
-          <textarea id="fieldProgress" rows="4"></textarea>
+          <label>Jira Update</label>
+          <textarea id="fieldJiraUpdate" rows="10"></textarea>
         </div>
         <div class="field-group">
-          <label>Recent Changes</label>
-          <textarea id="fieldChanges" rows="3"></textarea>
-        </div>
-        <div class="field-group">
-          <label>Next Steps</label>
-          <textarea id="fieldNextSteps" rows="3"></textarea>
-        </div>
-        <div class="field-group">
-          <label>Summary for Comments Column</label>
+          <label>Leadership Update</label>
           <div class="summary-box">
             <div class="date-tag" id="summaryDate"></div>
             <textarea id="fieldLeadership" rows="2" style="border:none;background:transparent;padding:0;width:100%;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;min-height:40px;"></textarea>
@@ -616,9 +608,20 @@ async function openPreview(rowIdx) {
   currentMilestone = { rowIdx, jiraId, name, update };
 
   document.getElementById('modalTitle').textContent = `Update Preview: ${jiraId} \u2014 ${name}`;
-  document.getElementById('fieldProgress').value = bulletsToText(update.progress_summary);
-  document.getElementById('fieldChanges').value = bulletsToText(update.recent_changes);
-  document.getElementById('fieldNextSteps').value = bulletsToText(update.next_steps);
+
+  // Combine progress, changes, and next steps into one Jira update
+  let jiraUpdate = '';
+  if (update.progress_summary && update.progress_summary.length) {
+    jiraUpdate += 'Progress Summary:\n' + update.progress_summary.map(b => `\u2022 ${b}`).join('\n') + '\n\n';
+  }
+  if (update.recent_changes && update.recent_changes.length) {
+    jiraUpdate += 'Recent Changes:\n' + update.recent_changes.map(b => `\u2022 ${b}`).join('\n') + '\n\n';
+  }
+  if (update.next_steps && update.next_steps.length) {
+    jiraUpdate += 'Next Steps:\n' + update.next_steps.map(b => `\u2022 ${b}`).join('\n');
+  }
+  document.getElementById('fieldJiraUpdate').value = jiraUpdate.trim();
+
   document.getElementById('summaryDate').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('fieldLeadership').value = update.leadership_summary || '';
   document.getElementById('postingStatus').innerHTML = '';
@@ -646,16 +649,11 @@ async function postToJira() {
   const statusEl = document.getElementById('postingStatus');
 
   // Build the comment from the editable fields
-  const progress = textToBullets(document.getElementById('fieldProgress').value);
-  const changes = textToBullets(document.getElementById('fieldChanges').value);
-  const nextSteps = textToBullets(document.getElementById('fieldNextSteps').value);
+  const jiraUpdate = document.getElementById('fieldJiraUpdate').value.trim();
   const leadership = document.getElementById('fieldLeadership').value.trim();
 
-  let comment = '';
-  if (progress.length) comment += 'Progress Summary:\n' + progress.map(b => `- ${b}`).join('\n') + '\n\n';
-  if (changes.length) comment += 'Recent Changes:\n' + changes.map(b => `- ${b}`).join('\n') + '\n\n';
-  if (nextSteps.length) comment += 'Next Steps:\n' + nextSteps.map(b => `- ${b}`).join('\n') + '\n\n';
-  if (leadership) comment += 'Leadership Summary:\n' + leadership;
+  let comment = jiraUpdate;
+  if (leadership) comment += '\n\nLeadership Summary:\n' + leadership;
 
   btn.disabled = true;
   statusEl.innerHTML = '<span class="spinner"></span> Posting to Jira...';
@@ -690,9 +688,6 @@ async function postToJira() {
     }
 
     // Update in-memory state with edits
-    generatedUpdates[jiraId].progress_summary = progress;
-    generatedUpdates[jiraId].recent_changes = changes;
-    generatedUpdates[jiraId].next_steps = nextSteps;
     generatedUpdates[jiraId].leadership_summary = leadership;
 
   } catch (e) {
