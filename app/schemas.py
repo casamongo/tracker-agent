@@ -23,9 +23,9 @@ class TrackContext(BaseModel):
 class JiraUpdate(BaseModel):
     jira_id: str
     milestone: str
-    progress_summary: List[str]
-    recent_changes: List[str]
-    next_steps: List[str]
+    current_status: str
+    target_date: str
+    blockers: List[str]
     leadership_summary: str
 
 
@@ -47,5 +47,5 @@ class PostToJiraRequest(BaseModel):
 
 class UpdateSheetRequest(BaseModel):
     sheet_id: str
-    track_name: str
+    jira_id: str
     leadership_summary: str

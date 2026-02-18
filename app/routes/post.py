@@ -31,40 +31,43 @@ def post_to_jira(request: PostToJiraRequest):
 @router.post("/update-sheet-summary")
 def update_sheet_summary(request: UpdateSheetRequest):
     """
-    Write a leadership summary back to the Comments column
-    of the track row in the tracker sheet.
+    Write a leadership summary to the Status Update column
+    of the milestone row identified by its Jira ID.
     """
     try:
-        # Read the sheet to find the track row index
+        from app.services.parser import normalize_jira_key
+
         rows = sheets.read_sheet(request.sheet_id)
 
-        track_row_index = None
+        # Find the milestone row by matching Jira ID
+        normalized_request_id = normalize_jira_key(request.jira_id.strip())
+        milestone_row_index = None
         for i, row in enumerate(rows):
             work_type = (row.get("WorkType") or "").strip()
-            description = (row.get("Description") or "").strip()
-            if work_type == "Track" and description.lower() == request.track_name.lower():
+            jira_id = (row.get("Jira ID") or "").strip()
+            if work_type == "Milestone" and normalize_jira_key(jira_id) == normalized_request_id:
                 # +2 because: +1 for header row, +1 for 1-based indexing
-                track_row_index = i + 2
+                milestone_row_index = i + 2
                 break
 
-        if track_row_index is None:
+        if milestone_row_index is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Track '{request.track_name}' not found in sheet.",
+                detail=f"Milestone with Jira ID '{request.jira_id}' not found in sheet.",
             )
 
-        # Find the Comments column letter
+        # Find the Status Update column letter
         headers = list(rows[0].keys())
-        if "Comments" not in headers:
+        if "Status Update" not in headers:
             raise HTTPException(
                 status_code=400,
-                detail="Sheet does not have a 'Comments' column.",
+                detail="Sheet does not have a 'Status Update' column.",
             )
 
-        col_index = headers.index("Comments")
+        col_index = headers.index("Status Update")
         col_letter = chr(ord("A") + col_index)  # Works for columns A-Z
 
-        cell_range = f"Sheet1!{col_letter}{track_row_index}"
+        cell_range = f"Sheet1!{col_letter}{milestone_row_index}"
         sheets.update_cell(request.sheet_id, cell_range, request.leadership_summary)
 
         return {

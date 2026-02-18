@@ -1,7 +1,8 @@
 """
 Jira service.
 
-Posts comments to Jira issues using the Jira REST API v3.
+Posts comments to Jira issues using the Jira REST API v2.
+Uses v2 for broad compatibility with both Jira Cloud and Server/DC.
 """
 
 import requests
@@ -14,9 +15,10 @@ def post_comment(issue_key: str, comment_text: str) -> dict:
     """
     Post a comment to a Jira issue.
 
-    Uses Atlassian Document Format (ADF) for Jira Cloud REST API v3.
+    Uses REST API v2 with plain-text body for compatibility
+    with both Jira Cloud and Jira Server/Data Center.
     """
-    url = f"{JIRA_BASE_URL}/rest/api/3/issue/{issue_key}/comment"
+    url = f"{JIRA_BASE_URL}/rest/api/2/issue/{issue_key}/comment"
 
     headers = {
         "Accept": "application/json",
@@ -25,24 +27,7 @@ def post_comment(issue_key: str, comment_text: str) -> dict:
 
     auth = HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN)
 
-    # Jira Cloud API v3 requires Atlassian Document Format (ADF)
-    payload = {
-        "body": {
-            "type": "doc",
-            "version": 1,
-            "content": [
-                {
-                    "type": "paragraph",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": comment_text,
-                        }
-                    ],
-                }
-            ],
-        }
-    }
+    payload = {"body": comment_text}
 
     response = requests.post(url, json=payload, headers=headers, auth=auth)
 
@@ -59,7 +44,7 @@ def get_issue(issue_key: str) -> dict:
     """
     Fetch basic issue details from Jira.
     """
-    url = f"{JIRA_BASE_URL}/rest/api/3/issue/{issue_key}"
+    url = f"{JIRA_BASE_URL}/rest/api/2/issue/{issue_key}"
 
     headers = {"Accept": "application/json"}
     auth = HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN)

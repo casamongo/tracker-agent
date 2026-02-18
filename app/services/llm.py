@@ -25,7 +25,7 @@ def generate_jira_updates(track_context: dict) -> dict:
 1. A list of milestones for a project track
 2. The full text of the track's notes document
 
-Your job: For each milestone, generate a structured Jira update.
+Your job: For each milestone, generate a structured Jira status update.
 
 MILESTONES:
 {milestones_json}
@@ -38,7 +38,9 @@ RULES:
 - If the notes document does not mention a milestone, use the milestone's
   existing status and any previous status update to generate a reasonable update.
 - Be factual. Do not invent progress that isn't supported by the notes.
-- Keep each bullet point concise (one sentence).
+- current_status: A concise summary of where the milestone stands right now (2-3 sentences max).
+- target_date: The milestone's target completion date (use the date from the milestone data).
+- blockers: A list of blockers or risks. If there are no blockers or risks, return ["None"].
 - The leadership_summary should be a single executive-level sentence
   summarizing the milestone status — no task-level detail.
 
@@ -49,9 +51,9 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
     {{
       "jira_id": "the milestone's jira_id",
       "milestone": "the milestone name",
-      "progress_summary": ["bullet 1", "bullet 2"],
-      "recent_changes": ["bullet 1", "bullet 2"],
-      "next_steps": ["bullet 1", "bullet 2"],
+      "current_status": "Concise status of where this milestone stands.",
+      "target_date": "The target date",
+      "blockers": ["blocker 1", "blocker 2"] or ["None"],
       "leadership_summary": "Single executive sentence."
     }}
   ]
