@@ -626,16 +626,16 @@ async function openPreview(rowIdx) {
 
   document.getElementById('modalTitle').textContent = `Update Preview: ${jiraId} \u2014 ${name}`;
 
-  // Combine progress, changes, and next steps into one Jira update
+  // Format Jira update with Current Status, Target Date, Blockers
   let jiraUpdate = '';
-  if (update.progress_summary && update.progress_summary.length) {
-    jiraUpdate += 'Progress Summary:\n' + update.progress_summary.map(b => `\u2022 ${b}`).join('\n') + '\n\n';
+  if (update.current_status) {
+    jiraUpdate += 'Current Status:\n' + update.current_status + '\n\n';
   }
-  if (update.recent_changes && update.recent_changes.length) {
-    jiraUpdate += 'Recent Changes:\n' + update.recent_changes.map(b => `\u2022 ${b}`).join('\n') + '\n\n';
+  if (update.target_date) {
+    jiraUpdate += 'Target Date:\n' + update.target_date + '\n\n';
   }
-  if (update.next_steps && update.next_steps.length) {
-    jiraUpdate += 'Next Steps:\n' + update.next_steps.map(b => `\u2022 ${b}`).join('\n');
+  if (update.blockers && update.blockers.length) {
+    jiraUpdate += 'Blockers:\n' + update.blockers.map(b => `\u2022 ${b}`).join('\n');
   }
   document.getElementById('fieldJiraUpdate').value = jiraUpdate.trim();
 
@@ -703,7 +703,6 @@ async function postToSheet() {
 
   if (!leadership) { statusEl.innerHTML = '<span style="color:var(--warning)">Nothing to post.</span>'; return; }
   if (!sheetId) { statusEl.innerHTML = '<span style="color:var(--warning)">No Sheet ID.</span>'; return; }
-  if (!currentMilestone.update.track) { statusEl.innerHTML = '<span style="color:var(--warning)">Track not found.</span>'; return; }
 
   btn.disabled = true;
   statusEl.innerHTML = '<span class="spinner"></span> Updating sheet...';
@@ -714,7 +713,7 @@ async function postToSheet() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sheet_id: sheetId,
-        track_name: currentMilestone.update.track,
+        jira_id: jiraId,
         leadership_summary: leadership,
       }),
     });
