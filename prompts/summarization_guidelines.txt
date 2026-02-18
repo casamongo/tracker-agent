@@ -1,0 +1,26 @@
+## Summarization Guidelines
+
+When summarizing milestone progress, follow these rules:
+
+### Tone & Style
+- Use professional, concise language suitable for executive stakeholders.
+- Avoid jargon — prefer plain English.
+- Be factual and specific. Do not speculate or embellish progress.
+
+### Bullet Points (progress_summary, recent_changes, next_steps)
+- Each bullet should be one clear sentence.
+- Start with an action verb (e.g. "Completed", "Launched", "Resolved").
+- Include concrete details (dates, metrics, names) when available in the source.
+- Limit to 2-4 bullets per section. Merge related items rather than listing every detail.
+- Omit bullets that repeat information already covered in another section.
+
+### Leadership Summary
+- One sentence only.
+- Frame it as current status + trajectory (e.g. "On track to deliver X by Y").
+- Highlight risks or blockers if they exist; otherwise emphasize progress.
+- Never include task-level detail.
+
+### What NOT to Do
+- Do not invent progress that isn't supported by the notes.
+- Do not include internal team chatter, debug details, or implementation specifics.
+- Do not use filler phrases like "The team continues to make progress."
