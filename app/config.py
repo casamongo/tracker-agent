@@ -25,11 +25,17 @@ def get_google_credentials(scopes: list[str]) -> service_account.Credentials:
     key file for development.
     """
     if GCP_CLIENT_EMAIL and GCP_PRIVATE_KEY and GCP_PROJECT_ID:
+        # Normalise the private key: strip wrapping quotes, convert literal
+        # "\n" sequences to real newlines, and trim whitespace.
+        pk = GCP_PRIVATE_KEY.strip()
+        if pk.startswith('"') and pk.endswith('"'):
+            pk = pk[1:-1]
+        pk = pk.replace("\\n", "\n")
         info = {
             "type": "service_account",
             "project_id": GCP_PROJECT_ID,
             "client_email": GCP_CLIENT_EMAIL,
-            "private_key": GCP_PRIVATE_KEY.replace("\\n", "\n"),
+            "private_key": pk,
             "token_uri": "https://oauth2.googleapis.com/token",
         }
         return service_account.Credentials.from_service_account_info(info, scopes=scopes)
